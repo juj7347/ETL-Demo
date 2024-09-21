@@ -12,6 +12,10 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
 
 import com.aaa.etl.util.PropertyFileReader;
 
@@ -19,6 +23,10 @@ public class Hdfs2Kafka {
 
 	private Properties systemProp = null;
 	private FileSystem hadoopFs = null;
+	
+	private Properties kafkaProdProperty;
+	private Producer<String, String> kafkaProducer;
+	
 	
 	public Hdfs2Kafka() throws Exception {
 		systemProp = PropertyFileReader.readPropertyFile("SystemConfig.properties");
@@ -30,6 +38,20 @@ public class Hdfs2Kafka {
 		
 		String namenode = systemProp.getProperty("hdfs.namenode.url");
 		hadoopFs = FileSystem.get(new URI(namenode), conf);
+		
+		// kafkaProdProperty 객체 생성
+		kafkaProdProperty = new Properties();
+		kafkaProdProperty.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, systemProp.get("kafka.brokerlist"));
+		kafkaProdProperty.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+		kafkaProdProperty.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+		kafkaProdProperty.put(ProducerConfig.ACKS_CONFIG, "all");
+		kafkaProdProperty.put(ProducerConfig.RETRIES_CONFIG, Integer.valueOf(1));
+		kafkaProdProperty.put(ProducerConfig.BATCH_SIZE_CONFIG, Integer.valueOf(20000));
+		kafkaProdProperty.put(ProducerConfig.LINGER_MS_CONFIG, Integer.valueOf(1));
+		kafkaProdProperty.put(ProducerConfig.BUFFER_MEMORY_CONFIG, Integer.valueOf(133554432));
+		
+		// KafkaProducer 객체 생성
+		kafkaProducer = new KafkaProducer<String, String>(kafkaProdProperty);
 	}
 	
 	public List<String> readHDFile(String filename) throws Exception{
