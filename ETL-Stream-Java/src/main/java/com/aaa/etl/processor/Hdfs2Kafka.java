@@ -12,9 +12,12 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import com.aaa.etl.util.PropertyFileReader;
@@ -93,11 +96,33 @@ public class Hdfs2Kafka {
 	
 	public void sendLines2Kafka(String topic, String line) {
 		System.out.println(line);
+		
+		ProducerRecord<String, String> kafkaProducerRecord = new ProducerRecord<String, String>(topic, line);
+		kafkaProducer.send(kafkaProducerRecord, new KafkaProducerCallback());
+		kafkaProducer.flush();
 	}
 	
 	public void closeStream() throws Exception {
 		if (hadoopFs != null) {
 			hadoopFs.close();
+		}
+		
+		if (kafkaProducer != null) {
+			kafkaProducer.close();
+		}
+	}
+	
+	class KafkaProducerCallback implements Callback {
+		
+		@Override
+		public void onCompletion(RecordMetadata metadata, Exception exception) {
+			// TODO Auto-generated method stub
+			if(exception != null) {
+				System.out.println(exception.getMessage());
+			} else {
+				System.out.println(metadata.topic() + "으로 " + metadata.serializedValueSize() + " 전송");
+			}
+			
 		}
 	}
 }
